@@ -4,115 +4,132 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Diseñador de Redes GPON</title>
-  
-  <!-- Estilos de Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- React y React DOM -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  
-  <!-- Babel para procesar JSX en el navegador -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
-  <!-- React Flow y sus estilos -->
-  <script src="https://cdn.jsdelivr.net/npm/@xyflow/react@12/dist/umd/index.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xyflow/react@12/dist/style.css" />
-
   <style>
-    html, body, #root {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
+    .node {
+      position: absolute;
+      cursor: move;
+      user-select: none;
     }
   </style>
 </head>
-<body class="bg-slate-900 text-white">
-  <div id="root"></div>
+<body class="bg-slate-900 text-white w-screen h-screen overflow-hidden flex flex-col font-sans">
 
-  <script type="text/babel">
-    const { useState, useCallback } = React;
-    const { ReactFlow, Background, Controls, MiniMap, addEdge, applyNodeChanges, applyEdgeChanges } = XYFlow;
+  <!-- Barra Superior -->
+  <header class="bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center z-10">
+    <div class="flex items-center space-x-3">
+      <span class="text-2xl">🌐</span>
+      <h1 class="text-xl font-bold text-sky-400">Diseñador GPON Interactive</h1>
+    </div>
+    <div class="space-x-2">
+      <button onclick="addNode('Splitter 1:8', '#ca8a04')" class="bg-amber-600 hover:bg-amber-500 px-3 py-1.5 rounded-lg text-sm font-semibold transition">
+        + Splitter 1:8
+      </button>
+      <button onclick="addNode('Caja NAP', '#16a34a')" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg text-sm font-semibold transition">
+        + Caja NAP
+      </button>
+    </div>
+  </header>
 
-    // Nodos iniciales con la topología GPON básica
-    const initialNodes = [
-      {
-        id: 'olt-1',
-        type: 'default',
-        data: { label: '🏢 OLT Central (Puerto PON 1)' },
-        position: { x: 100, y: 200 },
-        style: { background: '#1e293b', color: '#38bdf8', border: '2px solid #0284c7', borderRadius: '8px', padding: '10px' }
-      },
-      {
-        id: 'splitter-1',
-        type: 'default',
-        data: { label: '🔀 Splitter Primer Nivel (1:8)' },
-        position: { x: 450, y: 200 },
-        style: { background: '#1e293b', color: '#facc15', border: '2px solid #ca8a04', borderRadius: '8px', padding: '10px' }
-      },
-      {
-        id: 'nap-1',
-        type: 'default',
-        data: { label: '📦 Caja NAP 01 (8 Hilos)' },
-        position: { x: 800, y: 200 },
-        style: { background: '#1e293b', color: '#4ade80', border: '2px solid #16a34a', borderRadius: '8px', padding: '10px' }
+  <!-- Lienzo de Dibujo -->
+  <div id="canvas" class="flex-1 relative w-full h-full bg-slate-950 overflow-hidden">
+    
+    <!-- SVG para las líneas de fibra óptica -->
+    <svg id="svg-connections" class="absolute inset-0 w-full h-full pointer-events-none z-0">
+      <line id="fiber-line" x1="220" y1="230" x2="480" y2="230" stroke="#0284c7" stroke-width="4" stroke-dasharray="6" />
+    </svg>
+
+    <!-- Nodo OLT -->
+    <div id="olt" class="node z-10 bg-slate-800 border-2 border-sky-500 rounded-xl p-4 w-52 shadow-lg shadow-sky-950" style="left: 50px; top: 180px;">
+      <div class="flex items-center space-x-2 border-b border-slate-700 pb-2 mb-2">
+        <span class="text-xl">🏢</span>
+        <h3 class="font-bold text-sky-400 text-sm">OLT Central</h3>
+      </div>
+      <p class="text-xs text-slate-400">Puerto PON 1</p>
+      <p class="text-xs text-emerald-400 font-mono mt-1">Potencia: +2.5 dBm</p>
+    </div>
+
+    <!-- Nodo Splitter -->
+    <div id="splitter" class="node z-10 bg-slate-800 border-2 border-amber-500 rounded-xl p-4 w-52 shadow-lg shadow-amber-950" style="left: 480px; top: 180px;">
+      <div class="flex items-center space-x-2 border-b border-slate-700 pb-2 mb-2">
+        <span class="text-xl">🔀</span>
+        <h3 class="font-bold text-amber-400 text-sm">Splitter 1:8</h3>
+      </div>
+      <p class="text-xs text-slate-400">Nivel 1 (Atenuación 10.5 dB)</p>
+      <p class="text-xs text-amber-300 font-mono mt-1">Salida: -8.0 dBm</p>
+    </div>
+
+  </div>
+
+  <script>
+    // Lógica para hacer los elementos arrastrables dentro del canvas
+    function makeDraggable(element) {
+      let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+      element.onmousedown = dragMouseDown;
+
+      function dragMouseDown(e) {
+        e = e || window.event;
+        e.preventDefault();
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = elementDrag;
       }
-    ];
 
-    // Conexiones iniciales de fibra óptica
-    const initialEdges = [
-      { id: 'e1-2', source: 'olt-1', target: 'splitter-1', animated: true, label: 'Fibra Troncal (-18 dBm)', style: { stroke: '#0284c7', strokeWidth: 3 } },
-      { id: 'e2-3', source: 'splitter-1', target: 'nap-1', animated: true, label: 'Distribución', style: { stroke: '#ca8a04', strokeWidth: 2 } }
-    ];
+      function elementDrag(e) {
+        e = e || window.event;
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        element.style.top = (element.offsetTop - pos2) + "px";
+        element.style.left = (element.offsetLeft - pos1) + "px";
+        updateFiber();
+      }
 
-    function App() {
-      const [nodes, setNodes] = useState(initialNodes);
-      const [edges, setEdges] = useState(initialEdges);
-
-      const onNodesChange = useCallback(
-        (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
-        []
-      );
-      const onEdgesChange = useCallback(
-        (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-        []
-      );
-      const onConnect = useCallback(
-        (params) => setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#4ade80', strokeWidth: 2 } }, eds)),
-        []
-      );
-
-      return (
-        <div className="w-full h-screen flex flex-col">
-          <!-- Barra superior -->
-          <header className="bg-slate-800 p-4 border-b border-slate-700 flex justify-between items-center">
-            <h1 className="text-xl font-bold text-sky-400">GPON Network Designer</h1>
-            <span className="text-xs bg-slate-700 px-3 py-1 rounded-full text-slate-300">Modo Prototipo</span>
-          </header>
-
-          <!-- Lienzo interactivo de React Flow -->
-          <div className="flex-1 w-full h-full">
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              fitView
-            >
-              <Background color="#334155" gap={16} />
-              <Controls />
-              <MiniMap nodeColor="#0284c7" maskColor="rgba(15, 23, 42, 0.7)" />
-            </ReactFlow>
-          </div>
-        </div>
-      );
+      function closeDragElement() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+      }
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    // Actualiza la posición de la línea de fibra en tiempo real
+    function updateFiber() {
+      const olt = document.getElementById('olt');
+      const splitter = document.getElementById('splitter');
+      const line = document.getElementById('fiber-line');
+
+      if (olt && splitter && line) {
+        line.setAttribute('x1', olt.offsetLeft + 208);
+        line.setAttribute('y1', olt.offsetTop + 50);
+        line.setAttribute('x2', splitter.offsetLeft);
+        line.setAttribute('y2', splitter.offsetTop + 50);
+      }
+    }
+
+    // Inicializar arrastre
+    makeDraggable(document.getElementById('olt'));
+    makeDraggable(document.getElementById('splitter'));
+
+    // Agregar nuevos nodos al lienzo
+    function addNode(title, color) {
+      const canvas = document.getElementById('canvas');
+      const div = document.createElement('div');
+      div.className = 'node z-10 bg-slate-800 border-2 rounded-xl p-4 w-52 shadow-lg';
+      div.style.borderColor = color;
+      div.style.left = '250px';
+      div.style.top = '300px';
+      div.innerHTML = `
+        <div class="flex items-center space-x-2 border-b border-slate-700 pb-2 mb-2">
+          <span class="text-xl">📦</span>
+          <h3 class="font-bold text-sm text-white">${title}</h3>
+        </div>
+        <p class="text-xs text-slate-400">Elemento de Distribución</p>
+      `;
+      canvas.appendChild(div);
+      makeDraggable(div);
+    }
   </script>
 </body>
 </html>
