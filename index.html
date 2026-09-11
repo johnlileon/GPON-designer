@@ -3,69 +3,95 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Diseñador de Redes GPON</title>
+  <title>Diseñador GPON Personalizado</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    .node {
-      position: absolute;
-      cursor: move;
-      user-select: none;
+    .node { position: absolute; user-select: none; z-index: 10; }
+    .port {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: #38bdf8;
+      border: 2px solid #0f172a;
+      cursor: pointer;
+      display: inline-block;
+      transition: transform 0.1s;
     }
+    .port:hover { transform: scale(1.4); }
+    .port-selected { ring: 4px; ring-color: #f59e0b; background-color: #f59e0b; }
   </style>
 </head>
 <body class="bg-slate-900 text-white w-screen h-screen overflow-hidden flex flex-col font-sans">
 
-  <!-- Barra Superior -->
-  <header class="bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center z-10">
-    <div class="flex items-center space-x-3">
+  <!-- Barra Superior de Control -->
+  <header class="bg-slate-800 border-b border-slate-700 p-3 flex flex-wrap justify-between items-center z-20 gap-2">
+    <div class="flex items-center space-x-2">
       <span class="text-2xl">🌐</span>
-      <h1 class="text-xl font-bold text-sky-400">Diseñador GPON Interactive</h1>
+      <h1 class="text-lg font-bold text-sky-400">Diseñador GPON</h1>
     </div>
-    <div class="space-x-2">
-      <button onclick="addNode('Splitter 1:8', '#ca8a04')" class="bg-amber-600 hover:bg-amber-500 px-3 py-1.5 rounded-lg text-sm font-semibold transition">
-        + Splitter 1:8
+
+    <!-- Controles para agregar elementos -->
+    <div class="flex items-center space-x-3 text-xs">
+      <!-- Selector de color de Fibra -->
+      <div class="flex items-center space-x-1 bg-slate-700 px-2 py-1 rounded border border-slate-600">
+        <label for="fiberColor" class="text-slate-300 font-semibold">Color Hilo:</label>
+        <select id="fiberColor" class="bg-slate-800 text-white rounded px-1 py-0.5 outline-none">
+          <option value="#2563eb">1. Azul</option>
+          <option value="#ea580c">2. Naranja</option>
+          <option value="#16a34a">3. Verde</option>
+          <option value="#78350f">4. Marrón</option>
+          <option value="#6b7280">5. Gris</option>
+          <option value="#f8fafc">6. Blanco</option>
+          <option value="#dc2626">7. Rojo</option>
+          <option value="#171717">8. Negro</option>
+          <option value="#eab308">9. Amarillo</option>
+          <option value="#a855f7">10. Violeta</option>
+          <option value="#ec4899">11. Rosa</option>
+          <option value="#06b6d4">12. Aqua</option>
+        </select>
+      </div>
+
+      <button onclick="promptOLT()" class="bg-sky-600 hover:bg-sky-500 px-3 py-1.5 rounded font-semibold transition">
+        + OLT
       </button>
-      <button onclick="addNode('Caja NAP', '#16a34a')" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg text-sm font-semibold transition">
-        + Caja NAP
+
+      <button onclick="promptODF()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded font-semibold transition">
+        + ODF
+      </button>
+
+      <div class="flex items-center bg-amber-600 hover:bg-amber-500 rounded font-semibold overflow-hidden">
+        <button onclick="addSplitterFromSelect()" class="px-3 py-1.5">
+          + Splitter
+        </button>
+        <select id="splitterType" class="bg-amber-700 text-white px-1 py-1.5 outline-none text-xs border-l border-amber-500">
+          <option value="2">1x2</option>
+          <option value="4">1x4</option>
+          <option value="8" selected>1x8</option>
+          <option value="16">1x16</option>
+          <option value="32">1x32</option>
+        </select>
+      </div>
+
+      <button onclick="clearCanvas()" class="bg-rose-700 hover:bg-rose-600 px-2 py-1.5 rounded text-xs transition">
+        🗑️ Limpiar
       </button>
     </div>
   </header>
 
-  <!-- Lienzo de Dibujo -->
-  <div id="canvas" class="flex-1 relative w-full h-full bg-slate-950 overflow-hidden">
-    
-    <!-- SVG para las líneas de fibra óptica -->
-    <svg id="svg-connections" class="absolute inset-0 w-full h-full pointer-events-none z-0">
-      <line id="fiber-line" x1="220" y1="230" x2="480" y2="230" stroke="#0284c7" stroke-width="4" stroke-dasharray="6" />
-    </svg>
-
-    <!-- Nodo OLT -->
-    <div id="olt" class="node z-10 bg-slate-800 border-2 border-sky-500 rounded-xl p-4 w-52 shadow-lg shadow-sky-950" style="left: 50px; top: 180px;">
-      <div class="flex items-center space-x-2 border-b border-slate-700 pb-2 mb-2">
-        <span class="text-xl">🏢</span>
-        <h3 class="font-bold text-sky-400 text-sm">OLT Central</h3>
-      </div>
-      <p class="text-xs text-slate-400">Puerto PON 1</p>
-      <p class="text-xs text-emerald-400 font-mono mt-1">Potencia: +2.5 dBm</p>
-    </div>
-
-    <!-- Nodo Splitter -->
-    <div id="splitter" class="node z-10 bg-slate-800 border-2 border-amber-500 rounded-xl p-4 w-52 shadow-lg shadow-amber-950" style="left: 480px; top: 180px;">
-      <div class="flex items-center space-x-2 border-b border-slate-700 pb-2 mb-2">
-        <span class="text-xl">🔀</span>
-        <h3 class="font-bold text-amber-400 text-sm">Splitter 1:8</h3>
-      </div>
-      <p class="text-xs text-slate-400">Nivel 1 (Atenuación 10.5 dB)</p>
-      <p class="text-xs text-amber-300 font-mono mt-1">Salida: -8.0 dBm</p>
-    </div>
-
+  <!-- Lienzo -->
+  <div id="canvas" class="flex-1 relative w-full h-full bg-slate-950 overflow-auto">
+    <svg id="svg-connections" class="absolute inset-0 w-full h-full pointer-events-none z-0"></svg>
   </div>
 
   <script>
-    // Lógica para hacer los elementos arrastrables dentro del canvas
-    function makeDraggable(element) {
+    let nodeCount = 0;
+    let connections = [];
+    let selectedSourcePort = null;
+
+    // --- Hacer elemento arrastrables ---
+    function makeDraggable(element, handle) {
       let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-      element.onmousedown = dragMouseDown;
+      handle.onmousedown = dragMouseDown;
 
       function dragMouseDown(e) {
         e = e || window.event;
@@ -85,7 +111,7 @@
         pos4 = e.clientY;
         element.style.top = (element.offsetTop - pos2) + "px";
         element.style.left = (element.offsetLeft - pos1) + "px";
-        updateFiber();
+        updateConnections();
       }
 
       function closeDragElement() {
@@ -94,41 +120,202 @@
       }
     }
 
-    // Actualiza la posición de la línea de fibra en tiempo real
-    function updateFiber() {
-      const olt = document.getElementById('olt');
-      const splitter = document.getElementById('splitter');
-      const line = document.getElementById('fiber-line');
+    // --- Manejo de Conexiones por Click en Puertos ---
+    function handlePortClick(portEl) {
+      if (!selectedSourcePort) {
+        // Seleccionar puerto de origen
+        selectedSourcePort = portEl;
+        portEl.classList.add('port-selected');
+      } else {
+        if (selectedSourcePort === portEl) {
+          // Deseleccionar si es el mismo
+          selectedSourcePort.classList.remove('port-selected');
+          selectedSourcePort = null;
+          return;
+        }
 
-      if (olt && splitter && line) {
-        line.setAttribute('x1', olt.offsetLeft + 208);
-        line.setAttribute('y1', olt.offsetTop + 50);
-        line.setAttribute('x2', splitter.offsetLeft);
-        line.setAttribute('y2', splitter.offsetTop + 50);
+        // Crear línea entre seleccionado y destino
+        const color = document.getElementById('fiberColor').value;
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('stroke', color);
+        line.setAttribute('stroke-width', '3');
+        document.getElementById('svg-connections').appendChild(line);
+
+        connections.push({
+          from: selectedSourcePort,
+          to: portEl,
+          line: line
+        });
+
+        selectedSourcePort.classList.remove('port-selected');
+        selectedSourcePort = null;
+        updateConnections();
       }
     }
 
-    // Inicializar arrastre
-    makeDraggable(document.getElementById('olt'));
-    makeDraggable(document.getElementById('splitter'));
+    function updateConnections() {
+      const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+      connections.forEach(conn => {
+        const r1 = conn.from.getBoundingClientRect();
+        const r2 = conn.to.getBoundingClientRect();
 
-    // Agregar nuevos nodos al lienzo
-    function addNode(title, color) {
-      const canvas = document.getElementById('canvas');
+        const x1 = r1.left + r1.width / 2 - canvasRect.left + document.getElementById('canvas').scrollLeft;
+        const y1 = r1.top + r1.height / 2 - canvasRect.top + document.getElementById('canvas').scrollTop;
+        const x2 = r2.left + r2.width / 2 - canvasRect.left + document.getElementById('canvas').scrollLeft;
+        const y2 = r2.top + r2.height / 2 - canvasRect.top + document.getElementById('canvas').scrollTop;
+
+        conn.line.setAttribute('x1', x1);
+        conn.line.setAttribute('y1', y1);
+        conn.line.setAttribute('x2', x2);
+        conn.line.setAttribute('y2', y2);
+      });
+    }
+
+    // --- 1. OLT ---
+    function promptOLT() {
+      const ports = prompt("Número de puertos PON de la OLT:", "4");
+      if (!ports) return;
+      const power = prompt("Potencia de salida por puerto (dBm):", "+2.5");
+      if (!power) return;
+      createOLT(parseInt(ports), power);
+    }
+
+    function createOLT(portCount, power) {
+      nodeCount++;
       const div = document.createElement('div');
-      div.className = 'node z-10 bg-slate-800 border-2 rounded-xl p-4 w-52 shadow-lg';
-      div.style.borderColor = color;
-      div.style.left = '250px';
-      div.style.top = '300px';
+      div.className = 'node bg-slate-800 border-2 border-sky-500 rounded-xl p-3 shadow-lg shadow-sky-950/50 min-w-[200px]';
+      div.style.left = '50px';
+      div.style.top = `${50 + (nodeCount * 20)}px`;
+
+      let portsHTML = '';
+      for (let i = 1; i <= portCount; i++) {
+        portsHTML += `
+          <div class="flex justify-between items-center my-1 text-xs text-slate-300 bg-slate-900/50 p-1 rounded">
+            <span>PON ${i} (${power} dBm)</span>
+            <div class="port" onclick="handlePortClick(this)" title="Puerto PON ${i}"></div>
+          </div>
+        `;
+      }
+
       div.innerHTML = `
-        <div class="flex items-center space-x-2 border-b border-slate-700 pb-2 mb-2">
-          <span class="text-xl">📦</span>
-          <h3 class="font-bold text-sm text-white">${title}</h3>
+        <div class="drag-handle flex items-center justify-between border-b border-slate-700 pb-2 mb-2 cursor-move">
+          <div class="flex items-center space-x-1.5">
+            <span>🏢</span>
+            <h3 class="font-bold text-sky-400 text-sm">OLT Central</h3>
+          </div>
+          <button onclick="this.closest('.node').remove(); updateConnections();" class="text-slate-500 hover:text-red-400 text-xs">✕</button>
         </div>
-        <p class="text-xs text-slate-400">Elemento de Distribución</p>
+        <div>${portsHTML}</div>
       `;
-      canvas.appendChild(div);
-      makeDraggable(div);
+
+      document.getElementById('canvas').appendChild(div);
+      makeDraggable(div, div.querySelector('.drag-handle'));
+    }
+
+    // --- 2. ODF ---
+    function promptODF() {
+      const inPorts = prompt("Número de puertos de entrada (Izquierda):", "8");
+      if (!inPorts) return;
+      const outPorts = prompt("Número de puertos de salida (Derecha):", "8");
+      if (!outPorts) return;
+      createODF(parseInt(inPorts), parseInt(outPorts));
+    }
+
+    function createODF(inCount, outCount) {
+      nodeCount++;
+      const div = document.createElement('div');
+      div.className = 'node bg-slate-800 border-2 border-indigo-500 rounded-xl p-3 shadow-lg shadow-indigo-950/50 min-w-[220px]';
+      div.style.left = '320px';
+      div.style.top = `${50 + (nodeCount * 20)}px`;
+
+      const maxRows = Math.max(inCount, outCount);
+      let rowsHTML = '';
+
+      for (let i = 0; i < maxRows; i++) {
+        const hasIn = i < inCount;
+        const hasOut = i < outCount;
+        rowsHTML += `
+          <div class="flex justify-between items-center my-1 text-xs">
+            <div class="flex items-center space-x-1">
+              ${hasIn ? `<div class="port" onclick="handlePortClick(this)" title="Entrada ${i+1}"></div><span class="text-slate-400">In ${i+1}</span>` : ''}
+            </div>
+            <div class="flex items-center space-x-1">
+              ${hasOut ? `<span class="text-slate-400">Out ${i+1}</span><div class="port" onclick="handlePortClick(this)" title="Salida ${i+1}"></div>` : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      div.innerHTML = `
+        <div class="drag-handle flex items-center justify-between border-b border-slate-700 pb-2 mb-2 cursor-move">
+          <div class="flex items-center space-x-1.5">
+            <span>🔲</span>
+            <h3 class="font-bold text-indigo-400 text-sm">ODF Distribución</h3>
+          </div>
+          <button onclick="this.closest('.node').remove(); updateConnections();" class="text-slate-500 hover:text-red-400 text-xs">✕</button>
+        </div>
+        <div>${rowsHTML}</div>
+      `;
+
+      document.getElementById('canvas').appendChild(div);
+      makeDraggable(div, div.querySelector('.drag-handle'));
+    }
+
+    // --- 3. SPLITTER ---
+    function addSplitterFromSelect() {
+      const type = document.getElementById('splitterType').value;
+      createSplitter(parseInt(type));
+    }
+
+    function createSplitter(outCount) {
+      nodeCount++;
+      const div = document.createElement('div');
+      div.className = 'node bg-slate-800 border-2 border-amber-500 rounded-xl p-3 shadow-lg shadow-amber-950/50 min-w-[200px]';
+      div.style.left = '600px';
+      div.style.top = `${50 + (nodeCount * 20)}px`;
+
+      let outputsHTML = '';
+      for (let i = 1; i <= outCount; i++) {
+        outputsHTML += `
+          <div class="flex justify-end items-center space-x-1 my-1 text-xs text-slate-300">
+            <span>Out ${i}</span>
+            <div class="port" onclick="handlePortClick(this)" title="Salida ${i}"></div>
+          </div>
+        `;
+      }
+
+      div.innerHTML = `
+        <div class="drag-handle flex items-center justify-between border-b border-slate-700 pb-2 mb-2 cursor-move">
+          <div class="flex items-center space-x-1.5">
+            <span>🔀</span>
+            <h3 class="font-bold text-amber-400 text-sm">Splitter 1:${outCount}</h3>
+          </div>
+          <button onclick="this.closest('.node').remove(); updateConnections();" class="text-slate-500 hover:text-red-400 text-xs">✕</button>
+        </div>
+        <div class="flex justify-between items-start space-x-2">
+          <div class="flex flex-col items-start mt-1">
+            <span class="text-[10px] text-slate-400 mb-0.5">IN</span>
+            <div class="port" onclick="handlePortClick(this)" title="Entrada Splitter"></div>
+          </div>
+          <div class="flex-1 border-l border-slate-700 pl-2 max-h-48 overflow-y-auto">
+            ${outputsHTML}
+          </div>
+        </div>
+      `;
+
+      document.getElementById('canvas').appendChild(div);
+      makeDraggable(div, div.querySelector('.drag-handle'));
+    }
+
+    // --- Limpiar Todo ---
+    function clearCanvas() {
+      if (confirm("¿Deseas borrar todo el lienzo?")) {
+        document.getElementById('canvas').querySelectorAll('.node').forEach(n => n.remove());
+        document.getElementById('svg-connections').innerHTML = '';
+        connections = [];
+        selectedSourcePort = null;
+        nodeCount = 0;
+      }
     }
   </script>
 </body>
